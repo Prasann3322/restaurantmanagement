@@ -1,0 +1,6 @@
+{
+  "name": "Smart QR-Based Restaurant Management System",
+  "description": "An all-in-one digital ordering and management platform that integrates a real-time owner dashboard with an interactive QR-scannable dining portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
