@@ -34,9 +34,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "start": "tsx server.ts",
+    "server": "tsx server.ts",
     "lint": "eslint . --ext js,jsx,ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "predeploy": "npm run build",
+    "predeploy": "GITHUB_PAGES=true npm run build",
     "deploy": "gh-pages -d dist"
   }
 }

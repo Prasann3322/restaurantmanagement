@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
-  base: '/restaurantmanagement/',
+  base: process.env.GITHUB_PAGES === 'true' ? '/restaurantmanagement/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
