@@ -137,7 +137,7 @@ export default function App() {
 
       const { data: dbTables, error: errTables } = await supabase.from('tables').select('*');
       if (!errTables && dbTables) {
-        setTables(dbTables.map(mapDbTableToClient).sort((a, b) => a.number - b.number));
+        setTables(dbTables.map(mapDbTableToClient).sort((a: Table, b: Table) => a.number - b.number));
       }
 
       const { data: dbOrders, error: errOrders } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
@@ -155,7 +155,7 @@ export default function App() {
         const { data: m } = await supabase.from('menu_items').select('*');
         if (m) setMenuItems(m.map(mapDbMenuItemToClient));
         const { data: t } = await supabase.from('tables').select('*');
-        if (t) setTables(t.map(mapDbTableToClient).sort((a, b) => a.number - b.number));
+        if (t) setTables(t.map(mapDbTableToClient).sort((a: Table, b: Table) => a.number - b.number));
         const { data: o } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
         if (o) setOrders(o.map(mapDbOrderToClient));
       }
@@ -205,7 +205,7 @@ export default function App() {
         try {
           const { data, error } = await supabase.from('tables').select('*');
           if (!error && data) {
-            setTables(data.map(mapDbTableToClient).sort((a, b) => a.number - b.number));
+            setTables(data.map(mapDbTableToClient).sort((a: Table, b: Table) => a.number - b.number));
           }
         } catch (err) {
           console.error('Error handling realtime table update:', err);
