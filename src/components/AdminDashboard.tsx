@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { MenuItem, Table, Order, OrderStatus, encodeTableNumber } from '../types';
 import { ChefLogo } from './ChefLogo';
+import { supabase } from '../supabase';
 
 interface AdminDashboardProps {
   menuItems: MenuItem[];
@@ -600,6 +601,7 @@ export default function AdminDashboard({
     };
 
     setOrders(prev => [newOrder, ...prev]);
+    void supabase.from('orders').upsert(newOrder as any);
     setCreateOrderModalOpen(false);
     triggerToast(`Created new direct bill for ${createOrderTableNumber === 0 ? "Counter" : `Table ${createOrderTableNumber}`}!`);
   };
@@ -750,13 +752,13 @@ export default function AdminDashboard({
   const preparingOrders = orders.filter(o => o.status === 'preparing');
   const servedOrders = orders.filter(o => o.status === 'served');
 
-  const updateOrderStatus = (orderId: string, nextStatus: OrderStatus) => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.id === orderId) {
-        return { ...ord, status: nextStatus };
-      }
-      return ord;
-    }));
+  const updateOrderStatus = async (orderId: string, nextStatus: OrderStatus) => {
+    const updated = orders.map(ord => ord.id === orderId ? { ...ord, status: nextStatus } : ord);
+    setOrders(updated);
+    const target = updated.find(ord => ord.id === orderId);
+    if (target) {
+      await supabase.from('orders').upsert(target as any);
+    }
     triggerToast(`Order status updated to ${nextStatus.toUpperCase()}`);
   };
 
@@ -764,8 +766,10 @@ export default function AdminDashboard({
     openConfirm(
       "Confirm Order Cancellation",
       `Are you sure you want to permanently delete order ticket #${orderId.slice(4)}? This cannot be undone.`,
-      () => {
-        setOrders(prev => prev.filter(o => o.id !== orderId));
+      async () => {
+        const remaining = orders.filter(o => o.id !== orderId);
+        setOrders(remaining);
+        await supabase.from('orders').delete().in('id', [orderId]);
         triggerToast("Order has been deleted.");
       },
       "Yes, Delete Ticket",

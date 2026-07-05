@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import { promises as fs } from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -7,11 +8,161 @@ import nodemailer from "nodemailer";
 
 dotenv.config();
 
+type StoreTable = "menu_items" | "tables" | "orders";
+
+type AppStore = Record<StoreTable, any[]>;
+
+const DATA_DIR = path.join(process.cwd(), "data");
+const STORE_FILE = path.join(DATA_DIR, "store.json");
+
+const connectedClients = new Set<{ id: string; res: any; tables: Set<string> }>();
+let appStore: AppStore = { menu_items: [], tables: [], orders: [] };
+
+async function ensureStoreFile() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  try {
+    await fs.access(STORE_FILE);
+  } catch {
+    await fs.writeFile(STORE_FILE, JSON.stringify(appStore, null, 2));
+  }
+}
+
+async function loadStore() {
+  await ensureStoreFile();
+  const raw = await fs.readFile(STORE_FILE, "utf-8");
+  try {
+    const parsed = JSON.parse(raw);
+    appStore = {
+      menu_items: Array.isArray(parsed.menu_items) ? parsed.menu_items : [],
+      tables: Array.isArray(parsed.tables) ? parsed.tables : [],
+      orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+    };
+  } catch {
+    appStore = { menu_items: [], tables: [], orders: [] };
+  }
+}
+
+async function saveStore() {
+  await fs.writeFile(STORE_FILE, JSON.stringify(appStore, null, 2));
+}
+
+function broadcastTableUpdate(table: StoreTable, eventType: string, payload: any) {
+  const eventPayload = JSON.stringify({ eventType, table, new: payload, commit_timestamp: new Date().toISOString() });
+  for (const client of connectedClients) {
+    try {
+      client.res.write(`event: update\ndata: ${eventPayload}\n\n`);
+    } catch {
+      connectedClients.delete(client);
+    }
+  }
+}
+
 async function startServer() {
+  await loadStore();
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
 
   app.use(express.json());
+
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true, tables: Object.keys(appStore) });
+  });
+
+  app.get("/api/collections/:table", (req, res) => {
+    const table = req.params.table as StoreTable;
+    if (!appStore[table]) {
+      return res.status(404).json({ error: "Unknown collection" });
+    }
+
+    let rows = [...appStore[table]];
+    const orderBy = req.query.orderBy as string | undefined;
+    const ascending = req.query.ascending !== "false";
+    if (orderBy) {
+      rows = rows.slice().sort((a, b) => {
+        const left = a?.[orderBy];
+        const right = b?.[orderBy];
+        if (left < right) return ascending ? -1 : 1;
+        if (left > right) return ascending ? 1 : -1;
+        return 0;
+      });
+    }
+
+    res.json(rows);
+  });
+
+  app.post("/api/collections/:table", async (req, res) => {
+    const table = req.params.table as StoreTable;
+    if (!appStore[table]) {
+      return res.status(404).json({ error: "Unknown collection" });
+    }
+
+    const incoming = Array.isArray(req.body) ? req.body : [req.body];
+    const existing = [...appStore[table]];
+    const pkField = table === "tables" ? "table_number" : "id";
+    const filtered = incoming.filter((item: any) => !existing.some((current: any) => current[pkField] === item[pkField]));
+    appStore[table] = [...existing, ...filtered];
+    await saveStore();
+    filtered.forEach((item: any) => broadcastTableUpdate(table, "INSERT", item));
+    res.json(filtered);
+  });
+
+  app.put("/api/collections/:table", async (req, res) => {
+    const table = req.params.table as StoreTable;
+    if (!appStore[table]) {
+      return res.status(404).json({ error: "Unknown collection" });
+    }
+
+    const incoming = Array.isArray(req.body) ? req.body : [req.body];
+    const current = [...appStore[table]];
+    incoming.forEach((item: any) => {
+      const pkField = table === "tables" ? "table_number" : "id";
+      const index = current.findIndex((entry: any) => entry[pkField] === item[pkField]);
+      if (index >= 0) {
+        current[index] = { ...current[index], ...item };
+      } else {
+        current.push(item);
+      }
+    });
+
+    appStore[table] = current;
+    await saveStore();
+    incoming.forEach((item: any) => broadcastTableUpdate(table, "UPSERT", item));
+    res.json(incoming);
+  });
+
+  app.delete("/api/collections/:table", async (req, res) => {
+    const table = req.params.table as StoreTable;
+    if (!appStore[table]) {
+      return res.status(404).json({ error: "Unknown collection" });
+    }
+
+    const { field = "id", values = [] } = req.body || {};
+    const next = appStore[table].filter((item: any) => !values.includes(item[field]));
+    appStore[table] = next;
+    await saveStore();
+    broadcastTableUpdate(table, "DELETE", { field, values });
+    res.json({ success: true });
+  });
+
+  app.get("/api/stream", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.();
+
+    const client = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, res, tables: new Set<string>() };
+    connectedClients.add(client);
+    res.write(": connected\n\n");
+
+    const interval = setInterval(() => {
+      res.write(": keepalive\n\n");
+    }, 15000);
+
+    req.on("close", () => {
+      clearInterval(interval);
+      connectedClients.delete(client);
+    });
+  });
 
   // Store active OTP codes in-memory on the server
   const otps = new Map<string, { otp: string; expires: number }>();
