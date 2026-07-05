@@ -68,10 +68,26 @@ export default function App() {
     localStorage.setItem('gd_theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    menuItemsRef.current = menuItems;
+  }, [menuItems]);
+
+  useEffect(() => {
+    tablesRef.current = tables;
+  }, [tables]);
+
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
   // Global persistent states (Synced to Supabase with Live Synchronization)
   const [menuItems, setMenuItems] = useState<MenuItem[]>(INITIAL_MENU_ITEMS);
   const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+
+  const menuItemsRef = useRef<MenuItem[]>(menuItems);
+  const tablesRef = useRef<Table[]>(tables);
+  const ordersRef = useRef<Order[]>(orders);
   
   // Track tables we have initiated registration for to avoid duplicate concurrent writes
   const registeredTablesRef = useRef<Set<number>>(new Set());
@@ -222,23 +238,23 @@ export default function App() {
   const supabaseSetMenuItems = async (
     value: MenuItem[] | ((prev: MenuItem[]) => MenuItem[])
   ) => {
-    let nextMenuItems: MenuItem[];
-    if (typeof value === 'function') {
-      nextMenuItems = value(menuItems);
-    } else {
-      nextMenuItems = value;
-    }
+    const previousMenuItems = menuItemsRef.current;
+    const nextMenuItems = typeof value === 'function'
+      ? value(previousMenuItems)
+      : value;
 
     setMenuItems(nextMenuItems);
 
     try {
       const nextIds = nextMenuItems.map(m => m.id);
-      const itemsToDelete = menuItems.filter(item => !nextIds.includes(item.id));
+      const itemsToDelete = previousMenuItems.filter(item => !nextIds.includes(item.id));
       if (itemsToDelete.length > 0) {
         await supabase.from('menu_items').delete().in('id', itemsToDelete.map(m => m.id));
       }
       if (nextMenuItems.length > 0) {
         await supabase.from('menu_items').upsert(nextMenuItems.map(mapClientMenuItemToDb));
+      } else {
+        await supabase.from('menu_items').delete().in('id', previousMenuItems.map(m => m.id));
       }
     } catch (err) {
       console.error("Error writing menu_items to Supabase:", err);
@@ -248,23 +264,23 @@ export default function App() {
   const supabaseSetTables = async (
     value: Table[] | ((prev: Table[]) => Table[])
   ) => {
-    let nextTables: Table[];
-    if (typeof value === 'function') {
-      nextTables = value(tables);
-    } else {
-      nextTables = value;
-    }
+    const previousTables = tablesRef.current;
+    const nextTables = typeof value === 'function'
+      ? value(previousTables)
+      : value;
 
     setTables(nextTables);
 
     try {
       const nextNumbers = nextTables.map(t => t.number);
-      const tablesToDelete = tables.filter(t => !nextNumbers.includes(t.number));
+      const tablesToDelete = previousTables.filter(t => !nextNumbers.includes(t.number));
       if (tablesToDelete.length > 0) {
         await supabase.from('tables').delete().in('table_number', tablesToDelete.map(t => t.number));
       }
       if (nextTables.length > 0) {
         await supabase.from('tables').upsert(nextTables.map(t => mapClientTableToDb(t)));
+      } else {
+        await supabase.from('tables').delete().in('table_number', previousTables.map(t => t.number));
       }
     } catch (err) {
       console.error("Error writing tables to Supabase:", err);
@@ -274,23 +290,23 @@ export default function App() {
   const supabaseSetOrders = async (
     value: Order[] | ((prev: Order[]) => Order[])
   ) => {
-    let nextOrders: Order[];
-    if (typeof value === 'function') {
-      nextOrders = value(orders);
-    } else {
-      nextOrders = value;
-    }
+    const previousOrders = ordersRef.current;
+    const nextOrders = typeof value === 'function'
+      ? value(previousOrders)
+      : value;
 
     setOrders(nextOrders);
 
     try {
       const nextIds = nextOrders.map(o => o.id);
-      const ordersToDelete = orders.filter(o => !nextIds.includes(o.id));
+      const ordersToDelete = previousOrders.filter(o => !nextIds.includes(o.id));
       if (ordersToDelete.length > 0) {
         await supabase.from('orders').delete().in('id', ordersToDelete.map(o => o.id));
       }
       if (nextOrders.length > 0) {
         await supabase.from('orders').upsert(nextOrders.map(mapClientOrderToDb));
+      } else {
+        await supabase.from('orders').delete().in('id', previousOrders.map(o => o.id));
       }
     } catch (err) {
       console.error("Error writing orders to Supabase:", err);
