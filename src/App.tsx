@@ -164,17 +164,15 @@ export default function App() {
     }
   };
 
-  // Real-time synchronization of menuItems, tables, and orders via Supabase subscriptions
+  // Real-time synchronization of menuItems, tables, and orders via server-sent events
   useEffect(() => {
     fetchAllData();
 
     const channel = supabase
       .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        async (payload) => {
-          console.log('Realtime Order Change received:', payload);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, async (payload: any) => {
+        console.log('Realtime Order Change received:', payload);
+        try {
           const { data: dbOrders, error } = await supabase
             .from('orders')
             .select('*')
@@ -183,34 +181,36 @@ export default function App() {
             const mapped = dbOrders.map(mapDbOrderToClient);
             setOrders(mapped);
 
-            if (payload.eventType === 'INSERT') {
-              const mappedNewOrder = mapDbOrderToClient(payload.new);
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPSERT') {
+              const mappedNewOrder = payload.new ? mapDbOrderToClient(payload.new) : mapped[0];
               playIncomingOrderSound();
               triggerBrowserNotification(mappedNewOrder);
             }
           }
+        } catch (err) {
+          console.error('Error handling realtime order update:', err);
         }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'menu_items' },
-        async () => {
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, async () => {
+        try {
           const { data, error } = await supabase.from('menu_items').select('*');
           if (!error && data) {
             setMenuItems(data.map(mapDbMenuItemToClient));
           }
+        } catch (err) {
+          console.error('Error handling realtime menu update:', err);
         }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tables' },
-        async () => {
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, async () => {
+        try {
           const { data, error } = await supabase.from('tables').select('*');
           if (!error && data) {
             setTables(data.map(mapDbTableToClient).sort((a, b) => a.number - b.number));
           }
+        } catch (err) {
+          console.error('Error handling realtime table update:', err);
         }
-      )
+      })
       .subscribe();
 
     return () => {

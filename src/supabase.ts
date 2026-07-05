@@ -91,6 +91,22 @@ class RemoteSupabaseClient {
   channel(name: string) {
     const listeners: Array<{ callback: (payload: RealtimePayload) => void; table: string; eventType: string }> = [];
     let eventSource: EventSource | null = null;
+    let isClosed = false;
+
+    const notifyListeners = (payload: RealtimePayload) => {
+      listeners.forEach((listener) => {
+        if (listener.table && listener.table !== payload.table) {
+          return;
+        }
+
+        const matchesEvent = listener.eventType === '*' || listener.eventType === payload.eventType || listener.eventType === 'postgres_changes';
+        if (!matchesEvent) {
+          return;
+        }
+
+        listener.callback(payload);
+      });
+    };
 
     const channel = {
       on: (event: string, filter: any, callback: (payload: RealtimePayload) => void) => {
@@ -102,25 +118,32 @@ class RemoteSupabaseClient {
         return channel;
       },
       subscribe: () => {
-        if (eventSource) return { unsubscribe: () => {} };
+        if (eventSource || isClosed) {
+          return { unsubscribe: () => {} };
+        }
 
         eventSource = new EventSource(`${this.getBaseUrl()}/api/stream?channel=${encodeURIComponent(name)}`);
-        eventSource.onmessage = (event) => {
+        const handleIncomingEvent = (event: MessageEvent | Event) => {
           try {
-            const payload = JSON.parse(event.data);
-            listeners.forEach((listener) => {
-              if (listener.table && listener.table !== payload.table) {
-                return;
-              }
-              listener.callback(payload);
-            });
+            const payload = JSON.parse((event as MessageEvent).data);
+            notifyListeners(payload);
           } catch {
             // ignore malformed payloads
           }
         };
 
+        eventSource.addEventListener('update', handleIncomingEvent as EventListener);
+        eventSource.addEventListener('message', handleIncomingEvent as EventListener);
+        eventSource.onerror = () => {
+          if (eventSource?.readyState === EventSource.CLOSED) {
+            eventSource?.close();
+            eventSource = null;
+          }
+        };
+
         return {
           unsubscribe: () => {
+            isClosed = true;
             eventSource?.close();
             eventSource = null;
           },
