@@ -793,7 +793,7 @@ export default function AdminDashboard({
       number: num,
       status: 'ready'
     };
-    setTables(prev => [...prev, newTable].sort((a,b) => a.number - b.number));
+    void setTables((prev: Table[]) => [...prev, newTable].sort((a: Table, b: Table) => a.number - b.number));
     setNewTableNum('');
     triggerToast(`Table ${num} added.`);
   };
@@ -803,7 +803,7 @@ export default function AdminDashboard({
       "Delete Dining Desk?",
       `Are you sure you want to delete Table No. ${tableNum}? This will remove its registered QR Code configuration.`,
       () => {
-        setTables(prev => prev.filter(t => t.id !== tableId));
+        void setTables((prev: Table[]) => prev.filter((t: Table) => t.id !== tableId));
         triggerToast(`Table ${tableNum} removed.`);
       },
       "Yes, Delete Table",
@@ -865,7 +865,7 @@ export default function AdminDashboard({
         imageUrl: finalImageUrl
       };
 
-      setMenuItems(prev => [...prev, newItem]);
+      await setMenuItems((prev: MenuItem[]) => [...prev, newItem]);
       resetFormState();
       setIsMenuFormOpen(false);
       triggerToast(`"${newItem.name}" registration complete!`);
@@ -882,7 +882,7 @@ export default function AdminDashboard({
       "Delete Menu Item",
       `Are you sure you want to permanently delete "${name}" from the menu?`,
       () => {
-        setMenuItems(prev => prev.filter(item => item.id !== id));
+        void setMenuItems((prev: MenuItem[]) => prev.filter((item: MenuItem) => item.id !== id));
         triggerToast(`"${name}" deleted.`);
       },
       "Yes, Delete Item",
