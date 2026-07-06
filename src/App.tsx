@@ -529,13 +529,14 @@ export default function App() {
                     </label>
                     <div className="relative">
                       <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full px-4 py-3.5 bg-[#FFFDF9] dark:bg-slate-950 border-2 border-[#DCDCE2] dark:border-slate-800 rounded-2xl font-bold text-sm tracking-widest text-gray-950 dark:text-white pr-12 focus:outline-none focus:ring-4 focus:ring-red-700/10 focus:border-red-700 transition-all placeholder:text-gray-400"
-                      />
+  type={showPassword ? 'text' : 'password'}
+  required
+  value={password}
+  onChange={e => setPassword(e.target.value)}
+  placeholder="••••••••"
+  className="w-full px-4 py-3.5 bg-[#FFFDF9] dark:bg-slate-950 border-2 border-[#DCDCE2] dark:border-slate-800 rounded-2xl font-bold text-sm tracking-widest text-gray-950 dark:text-white pr-12 focus:outline-none focus:ring-4 focus:ring-red-700/10 focus:border-red-700 transition-all placeholder:text-gray-400"
+/>
+
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
