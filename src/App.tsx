@@ -68,6 +68,15 @@ export default function App() {
     localStorage.setItem('gd_theme', theme);
   }, [theme]);
 
+  // Global persistent states (Synced to Supabase with Live Synchronization)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(INITIAL_MENU_ITEMS);
+  const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+
+  const menuItemsRef = useRef<MenuItem[]>(menuItems);
+  const tablesRef = useRef<Table[]>(tables);
+  const ordersRef = useRef<Order[]>(orders);
+
   useEffect(() => {
     menuItemsRef.current = menuItems;
   }, [menuItems]);
@@ -79,15 +88,6 @@ export default function App() {
   useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
-
-  // Global persistent states (Synced to Supabase with Live Synchronization)
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(INITIAL_MENU_ITEMS);
-  const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-
-  const menuItemsRef = useRef<MenuItem[]>(menuItems);
-  const tablesRef = useRef<Table[]>(tables);
-  const ordersRef = useRef<Order[]>(orders);
   
   // Track tables we have initiated registration for to avoid duplicate concurrent writes
   const registeredTablesRef = useRef<Set<number>>(new Set());

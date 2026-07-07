@@ -1,5 +1,255 @@
 {
-  "menu_items": [],
-  "tables": [],
-  "orders": []
+  "menu_items": [
+    {
+      "id": "m1",
+      "product_name": "Special Punjabi Thali",
+      "display_price": 240,
+      "category": "Thalis & Meals",
+      "image_url": "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 140,
+      "fullPrice": 240
+    },
+    {
+      "id": "m2",
+      "product_name": "Chinese Deluxe Combo Thali",
+      "display_price": 220,
+      "category": "Thalis & Meals",
+      "image_url": "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 130,
+      "fullPrice": 220
+    },
+    {
+      "id": "m3",
+      "product_name": "Schezwan Hakka Noodles",
+      "display_price": 160,
+      "category": "Chinese Dishes",
+      "image_url": "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 95,
+      "fullPrice": 160
+    },
+    {
+      "id": "m4",
+      "product_name": "Paneer Chilli Dry",
+      "display_price": 180,
+      "category": "Chinese Dishes",
+      "image_url": "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 110,
+      "fullPrice": 180
+    },
+    {
+      "id": "m5",
+      "product_name": "Shahi Kadhai Paneer",
+      "display_price": 260,
+      "category": "Main Course",
+      "image_url": "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 150,
+      "fullPrice": 260
+    },
+    {
+      "id": "m6",
+      "product_name": "Dal Makhani Handi",
+      "display_price": 190,
+      "category": "Main Course",
+      "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 115,
+      "fullPrice": 190
+    },
+    {
+      "id": "m7",
+      "product_name": "Thick Mango Kesar Lassi",
+      "display_price": 90,
+      "category": "Drinks & Desserts",
+      "image_url": "https://images.unsplash.com/photo-1571115177098-24ec4209b535?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 55,
+      "fullPrice": 90
+    },
+    {
+      "id": "m8",
+      "product_name": "Hot Rabdi Gulab Jamun",
+      "display_price": 120,
+      "category": "Drinks & Desserts",
+      "image_url": "https://images.unsplash.com/photo-1589118949245-7d38baf380d6?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 70,
+      "fullPrice": 120
+    },
+    {
+      "id": "m9",
+      "product_name": "Executive Everyday Thali",
+      "display_price": 200,
+      "category": "Thalis & Meals",
+      "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 120,
+      "fullPrice": 200
+    },
+    {
+      "id": "m10",
+      "product_name": "Dairy Premium Thali",
+      "display_price": 290,
+      "category": "Thalis & Meals",
+      "image_url": "https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 170,
+      "fullPrice": 290
+    },
+    {
+      "id": "m11",
+      "product_name": "Veg Manchurian Gravy",
+      "display_price": 150,
+      "category": "Chinese Dishes",
+      "image_url": "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 90,
+      "fullPrice": 150
+    },
+    {
+      "id": "m12",
+      "product_name": "Chilli Garlic Wok Noodles",
+      "display_price": 165,
+      "category": "Chinese Dishes",
+      "image_url": "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 100,
+      "fullPrice": 165
+    },
+    {
+      "id": "m13",
+      "product_name": "Crispy Veg Spring Rolls",
+      "display_price": 140,
+      "category": "Chinese Dishes",
+      "image_url": "https://images.unsplash.com/photo-1626700051175-6518c4793f4f?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 85,
+      "fullPrice": 140
+    },
+    {
+      "id": "m14",
+      "product_name": "Paneer Butter Masala",
+      "display_price": 250,
+      "category": "Main Course",
+      "image_url": "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 145,
+      "fullPrice": 250
+    },
+    {
+      "id": "m15",
+      "product_name": "Peshawari Chole Masala",
+      "display_price": 180,
+      "category": "Main Course",
+      "image_url": "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 110,
+      "fullPrice": 180
+    },
+    {
+      "id": "m16",
+      "product_name": "Royal Shahi Malai Kofta",
+      "display_price": 230,
+      "category": "Main Course",
+      "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 135,
+      "fullPrice": 230
+    },
+    {
+      "id": "m17",
+      "product_name": "Classic Saffron Elaichi Lassi",
+      "display_price": 80,
+      "category": "Drinks & Desserts",
+      "image_url": "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 50,
+      "fullPrice": 80
+    },
+    {
+      "id": "m18",
+      "product_name": "Royal Kesaria Rasmalai",
+      "display_price": 100,
+      "category": "Drinks & Desserts",
+      "image_url": "https://images.unsplash.com/photo-1589118949245-7d38baf380d6?auto=format&fit=crop&w=400&h=400&q=80",
+      "isSinglePortion": true,
+      "halfPrice": 60,
+      "fullPrice": 100
+    }
+  ],
+  "tables": [
+    {
+      "table_number": 1,
+      "status": "ready",
+      "current_order_id": null
+    },
+    {
+      "table_number": 2,
+      "status": "ready",
+      "current_order_id": null
+    },
+    {
+      "table_number": 3,
+      "status": "ready",
+      "current_order_id": null
+    },
+    {
+      "table_number": 4,
+      "status": "ready",
+      "current_order_id": null
+    },
+    {
+      "table_number": 5,
+      "status": "ready",
+      "current_order_id": null
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-101",
+      "table_number": 3,
+      "items": [
+        {
+          "id": "orditem-1",
+          "menuItemId": "m1",
+          "name": "Special Punjabi Thali",
+          "price": 240,
+          "quantity": 1,
+          "notes": "Less spicy, extra roti butter"
+        },
+        {
+          "id": "orditem-2",
+          "menuItemId": "m7",
+          "name": "Thick Mango Kesar Lassi",
+          "price": 90,
+          "quantity": 2,
+          "notes": "Chilled"
+        }
+      ],
+      "total_amount": 420,
+      "status": "preparing",
+      "created_at": "2026-07-07T05:37:55.729Z"
+    },
+    {
+      "id": "ord-102",
+      "table_number": 5,
+      "items": [
+        {
+          "id": "orditem-3",
+          "menuItemId": "m3",
+          "name": "Schezwan Hakka Noodles",
+          "price": 160,
+          "quantity": 1,
+          "notes": "Make it spicy and dry"
+        }
+      ],
+      "total_amount": 160,
+      "status": "preparing",
+      "created_at": "2026-07-07T05:45:55.732Z"
+    }
+  ]
 }
