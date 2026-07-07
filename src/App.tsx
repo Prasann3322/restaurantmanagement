@@ -235,6 +235,35 @@ export default function App() {
   }, []);
 
   // Sync state modifications dynamically to Supabase
+  const persistMenuItems = async (nextMenuItems: MenuItem[]) => {
+    const previousMenuItems = menuItemsRef.current;
+    setMenuItems(nextMenuItems);
+    menuItemsRef.current = nextMenuItems;
+
+    try {
+      const nextIds = nextMenuItems.map((m: MenuItem) => m.id);
+      const itemsToDelete = previousMenuItems.filter((item: MenuItem) => !nextIds.includes(item.id));
+      if (itemsToDelete.length > 0) {
+        await supabase.from('menu_items').delete().in('id', itemsToDelete.map((m: MenuItem) => m.id));
+      }
+
+      if (nextMenuItems.length > 0) {
+        await supabase.from('menu_items').upsert(nextMenuItems.map(mapClientMenuItemToDb));
+      } else {
+        await supabase.from('menu_items').delete().in('id', previousMenuItems.map((m: MenuItem) => m.id));
+      }
+
+      const { data, error } = await supabase.from('menu_items').select('*');
+      if (!error && data) {
+        const mapped = data.map(mapDbMenuItemToClient);
+        setMenuItems(mapped);
+        menuItemsRef.current = mapped;
+      }
+    } catch (err) {
+      console.error("Error writing menu_items to Supabase:", err);
+    }
+  };
+
   const supabaseSetMenuItems = async (
     value: MenuItem[] | ((prev: MenuItem[]) => MenuItem[])
   ) => {
@@ -243,22 +272,7 @@ export default function App() {
       ? value(previousMenuItems)
       : value;
 
-    setMenuItems(nextMenuItems);
-
-    try {
-      const nextIds = nextMenuItems.map(m => m.id);
-      const itemsToDelete = previousMenuItems.filter(item => !nextIds.includes(item.id));
-      if (itemsToDelete.length > 0) {
-        await supabase.from('menu_items').delete().in('id', itemsToDelete.map(m => m.id));
-      }
-      if (nextMenuItems.length > 0) {
-        await supabase.from('menu_items').upsert(nextMenuItems.map(mapClientMenuItemToDb));
-      } else {
-        await supabase.from('menu_items').delete().in('id', previousMenuItems.map(m => m.id));
-      }
-    } catch (err) {
-      console.error("Error writing menu_items to Supabase:", err);
-    }
+    await persistMenuItems(nextMenuItems);
   };
 
   const supabaseSetTables = async (

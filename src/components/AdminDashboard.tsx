@@ -865,7 +865,7 @@ export default function AdminDashboard({
         imageUrl: finalImageUrl
       };
 
-      await setMenuItems((prev: MenuItem[]) => [...prev, newItem]);
+      await setMenuItems([...menuItems, newItem]);
       resetFormState();
       setIsMenuFormOpen(false);
       triggerToast(`"${newItem.name}" registration complete!`);
@@ -882,7 +882,7 @@ export default function AdminDashboard({
       "Delete Menu Item",
       `Are you sure you want to permanently delete "${name}" from the menu?`,
       () => {
-        void setMenuItems((prev: MenuItem[]) => prev.filter((item: MenuItem) => item.id !== id));
+        void setMenuItems(menuItems.filter((item: MenuItem) => item.id !== id));
         triggerToast(`"${name}" deleted.`);
       },
       "Yes, Delete Item",

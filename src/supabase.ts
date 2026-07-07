@@ -48,17 +48,26 @@ class RemoteSupabaseClient {
   from(table: string) {
     const builder = {
       select: (_columns?: string) => {
-        const queryBuilder = {
-          order: async (column: string, { ascending }: { ascending: boolean } = { ascending: true }) => {
-            const data = await this.request(`/api/collections/${table}?orderBy=${encodeURIComponent(column)}&ascending=${ascending}`);
-            return { data, error: null };
-          },
-          then: async (resolve: (value: { data: any; error: null }) => void) => {
-            const data = await this.request(`/api/collections/${table}`);
-            resolve({ data, error: null });
-          },
+        const buildQueryBuilder = (path: string) => {
+          const promise = this.request(path)
+            .then((data: any) => ({ data, error: null }))
+            .catch((error: Error) => ({ data: null, error }));
+
+          const queryBuilder = {
+            order: (column: string, { ascending }: { ascending?: boolean } = {}) => {
+              const normalizedAscending = ascending !== false;
+              const orderPath = `${path}${path.includes('?') ? '&' : '?'}orderBy=${encodeURIComponent(column)}&ascending=${normalizedAscending}`;
+              return buildQueryBuilder(orderPath);
+            },
+            then: promise.then.bind(promise),
+            catch: promise.catch.bind(promise),
+            finally: promise.finally.bind(promise),
+          };
+
+          return queryBuilder as any;
         };
-        return queryBuilder as any;
+
+        return buildQueryBuilder(`/api/collections/${table}`);
       },
       insert: async (newData: any | any[]) => {
         const data = await this.request(`/api/collections/${table}`, {
