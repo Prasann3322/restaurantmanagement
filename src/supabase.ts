@@ -11,7 +11,7 @@ const isUrlValid = (url: string) => {
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && isUrlValid(supabaseUrl));
 
 interface RealtimePayload {
-  eventType: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPSERT' | '*';
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPSERT' | 'REPLACE' | '*';
   table: string;
   new?: any;
   old?: any;
@@ -54,8 +54,9 @@ class RemoteSupabaseClient {
   }
 
   private handleLocalRequest(path: string, init: RequestInit = {}) {
-    const match = path.match(/^\/api\/collections\/([^?]+)/);
+    const match = path.match(/^\/api\/collections\/([^/?]+)(\/replace)?/);
     const table = match?.[1] as StoreTable | undefined;
+    const isReplaceRequest = Boolean(match?.[2]);
     if (!table || !['menu_items', 'tables', 'orders'].includes(table)) {
       throw new Error(`Local fallback cannot handle request: ${path}`);
     }
@@ -93,6 +94,12 @@ class RemoteSupabaseClient {
 
     if (method === 'PUT') {
       const incoming = Array.isArray(body) ? body : [body];
+      if (isReplaceRequest) {
+        store[table] = incoming;
+        this.setLocalStore(store);
+        return incoming;
+      }
+
       const rows = [...store[table]];
       incoming.forEach((item: any) => {
         const index = rows.findIndex((entry: any) => entry[pkField] === item[pkField]);
@@ -213,6 +220,13 @@ class RemoteSupabaseClient {
         const data = await this.request(`/api/collections/${table}`, {
           method: 'PUT',
           body: JSON.stringify(upsertData),
+        });
+        return { data, error: null };
+      },
+      replace: async (replacementData: any[]) => {
+        const data = await this.request(`/api/collections/${table}/replace`, {
+          method: 'PUT',
+          body: JSON.stringify(replacementData),
         });
         return { data, error: null };
       },

@@ -130,6 +130,19 @@ async function startServer() {
     res.json(incoming);
   });
 
+  app.put("/api/collections/:table/replace", async (req, res) => {
+    const table = req.params.table as StoreTable;
+    if (!appStore[table]) {
+      return res.status(404).json({ error: "Unknown collection" });
+    }
+
+    const incoming = Array.isArray(req.body) ? req.body : [];
+    appStore[table] = incoming;
+    await saveStore();
+    broadcastTableUpdate(table, "REPLACE", incoming);
+    res.json(incoming);
+  });
+
   app.delete("/api/collections/:table", async (req, res) => {
     const table = req.params.table as StoreTable;
     if (!appStore[table]) {

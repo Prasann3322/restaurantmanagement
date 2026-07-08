@@ -251,21 +251,24 @@ export default function App() {
 
   // Sync state modifications dynamically to Supabase
   const persistMenuItems = async (nextMenuItems: MenuItem[]) => {
-    const previousMenuItems = menuItemsRef.current;
     setMenuItems(nextMenuItems);
     menuItemsRef.current = nextMenuItems;
 
     try {
-      const nextIds = nextMenuItems.map((m: MenuItem) => m.id);
-      const itemsToDelete = previousMenuItems.filter((item: MenuItem) => !nextIds.includes(item.id));
-      if (itemsToDelete.length > 0) {
-        await supabase.from('menu_items').delete().in('id', itemsToDelete.map((m: MenuItem) => m.id));
-      }
+      const dbMenuItems = nextMenuItems.map(mapClientMenuItemToDb);
+      const menuCollection = supabase.from('menu_items') as any;
 
-      if (nextMenuItems.length > 0) {
-        await supabase.from('menu_items').upsert(nextMenuItems.map(mapClientMenuItemToDb));
+      if (typeof menuCollection.replace === 'function') {
+        await menuCollection.replace(dbMenuItems);
       } else {
-        await supabase.from('menu_items').delete().in('id', previousMenuItems.map((m: MenuItem) => m.id));
+        const { data: currentRows } = await supabase.from('menu_items').select('*');
+        const currentIds = Array.isArray(currentRows) ? currentRows.map((item: any) => item.id).filter(Boolean) : [];
+        if (currentIds.length > 0) {
+          await supabase.from('menu_items').delete().in('id', currentIds);
+        }
+        if (dbMenuItems.length > 0) {
+          await supabase.from('menu_items').upsert(dbMenuItems);
+        }
       }
       markDatabaseInitialized();
 
