@@ -81,6 +81,25 @@ export default function AdminDashboard({
   const [isAiImageAccepted, setIsAiImageAccepted] = useState<boolean>(false);
   const [aiImageStatus, setAiImageStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
 
+  const uploadDishImage = async (imageDataUrl: string, fileName: string) => {
+    try {
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageDataUrl, name: fileName })
+      });
+
+      if (!response.ok) {
+        return imageDataUrl;
+      }
+
+      const data = await response.json();
+      return typeof data.imageUrl === 'string' && data.imageUrl ? data.imageUrl : imageDataUrl;
+    } catch {
+      return imageDataUrl;
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -91,10 +110,19 @@ export default function AdminDashboard({
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       if (event.target?.result) {
-        setUploadedImageUrl(event.target.result as string);
-        triggerToast("Dish image uploaded successfully!");
+        const localImageData = event.target.result as string;
+        setUploadedImageUrl(localImageData);
+        setIsGeneratingImage(true);
+        triggerToast("Dish image loaded. Uploading if image storage is configured...");
+        try {
+          const storedImageUrl = await uploadDishImage(localImageData, file.name);
+          setUploadedImageUrl(storedImageUrl);
+          triggerToast(storedImageUrl === localImageData ? "Dish image saved locally." : "Dish image uploaded successfully!");
+        } finally {
+          setIsGeneratingImage(false);
+        }
       }
     };
     reader.onerror = () => {

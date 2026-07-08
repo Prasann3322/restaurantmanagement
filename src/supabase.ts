@@ -152,6 +152,7 @@ class RemoteSupabaseClient {
   private async request(path: string, init: RequestInit = {}) {
     const candidateBases = this.getBaseUrlCandidates();
     const errors: string[] = [];
+    let blockingServerError: Error | null = null;
 
     for (const baseUrl of candidateBases) {
       try {
@@ -171,10 +172,18 @@ class RemoteSupabaseClient {
         }
 
         const text = await response.text();
-        errors.push(`${baseUrl}${path}: ${text || response.statusText}`);
+        const message = `${baseUrl}${path}: ${text || response.statusText}`;
+        errors.push(message);
+        if (![404, 405].includes(response.status)) {
+          blockingServerError = new Error(message);
+        }
       } catch (error) {
         errors.push(`${baseUrl}${path}: ${error instanceof Error ? error.message : String(error)}`);
       }
+    }
+
+    if (blockingServerError) {
+      throw blockingServerError;
     }
 
     try {

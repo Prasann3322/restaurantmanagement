@@ -62,10 +62,49 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
 
-  app.use(express.json());
+  app.use(express.json({ limit: "25mb" }));
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, tables: Object.keys(appStore) });
+  });
+
+  app.post("/api/upload-image", async (req, res) => {
+    try {
+      const apiKey = process.env.IMGBB_API_KEY;
+      const { image, name } = req.body || {};
+
+      if (!image || typeof image !== "string") {
+        return res.status(400).json({ error: "Image data is required." });
+      }
+
+      if (!apiKey) {
+        return res.status(501).json({ error: "IMGBB_API_KEY is not configured." });
+      }
+
+      const base64Image = image.includes(",") ? image.split(",").pop() : image;
+      const form = new FormData();
+      form.append("image", base64Image || "");
+      if (name && typeof name === "string") {
+        form.append("name", name.replace(/\.[^.]+$/, "").slice(0, 80));
+      }
+
+      const uploadResponse = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`, {
+        method: "POST",
+        body: form
+      });
+      const payload = await uploadResponse.json().catch(() => ({}));
+
+      if (!uploadResponse.ok || !payload?.data?.url) {
+        return res.status(uploadResponse.status || 502).json({
+          error: payload?.error?.message || "ImgBB upload failed."
+        });
+      }
+
+      res.json({ imageUrl: payload.data.url });
+    } catch (err: any) {
+      console.error("[Server Image Upload Error]:", err.message || err);
+      res.status(500).json({ error: err.message || "Image upload failed." });
+    }
   });
 
   app.get("/api/collections/:table", (req, res) => {
