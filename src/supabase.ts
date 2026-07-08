@@ -18,39 +18,164 @@ interface RealtimePayload {
   commit_timestamp: string;
 }
 
+type StoreTable = 'menu_items' | 'tables' | 'orders';
+type LocalStore = Record<StoreTable, any[]>;
+
+const LOCAL_STORE_KEY = 'gd_restaurant_local_store_v1';
+
 class RemoteSupabaseClient {
-  private getBaseUrl() {
+  private createEmptyStore(): LocalStore {
+    return { menu_items: [], tables: [], orders: [] };
+  }
+
+  private getLocalStore(): LocalStore {
+    if (typeof window === 'undefined') {
+      return this.createEmptyStore();
+    }
+
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(LOCAL_STORE_KEY) || '{}');
+      return {
+        menu_items: Array.isArray(parsed.menu_items) ? parsed.menu_items : [],
+        tables: Array.isArray(parsed.tables) ? parsed.tables : [],
+        orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+      };
+    } catch {
+      return this.createEmptyStore();
+    }
+  }
+
+  private setLocalStore(store: LocalStore) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(LOCAL_STORE_KEY, JSON.stringify(store));
+  }
+
+  private handleLocalRequest(path: string, init: RequestInit = {}) {
+    const match = path.match(/^\/api\/collections\/([^?]+)/);
+    const table = match?.[1] as StoreTable | undefined;
+    if (!table || !['menu_items', 'tables', 'orders'].includes(table)) {
+      throw new Error(`Local fallback cannot handle request: ${path}`);
+    }
+
+    const store = this.getLocalStore();
+    const method = (init.method || 'GET').toUpperCase();
+    const url = new URL(path, 'http://local-fallback');
+    const pkField = table === 'tables' ? 'table_number' : 'id';
+
+    if (method === 'GET') {
+      let rows = [...store[table]];
+      const orderBy = url.searchParams.get('orderBy');
+      const ascending = url.searchParams.get('ascending') !== 'false';
+      if (orderBy) {
+        rows = rows.sort((a, b) => {
+          const left = a?.[orderBy];
+          const right = b?.[orderBy];
+          if (left < right) return ascending ? -1 : 1;
+          if (left > right) return ascending ? 1 : -1;
+          return 0;
+        });
+      }
+      return rows;
+    }
+
+    const body = typeof init.body === 'string' ? JSON.parse(init.body || '{}') : init.body;
+
+    if (method === 'POST') {
+      const incoming = Array.isArray(body) ? body : [body];
+      const filtered = incoming.filter((item: any) => !store[table].some((current: any) => current[pkField] === item[pkField]));
+      store[table] = [...store[table], ...filtered];
+      this.setLocalStore(store);
+      return filtered;
+    }
+
+    if (method === 'PUT') {
+      const incoming = Array.isArray(body) ? body : [body];
+      const rows = [...store[table]];
+      incoming.forEach((item: any) => {
+        const index = rows.findIndex((entry: any) => entry[pkField] === item[pkField]);
+        if (index >= 0) {
+          rows[index] = { ...rows[index], ...item };
+        } else {
+          rows.push(item);
+        }
+      });
+      store[table] = rows;
+      this.setLocalStore(store);
+      return incoming;
+    }
+
+    if (method === 'DELETE') {
+      const { field = pkField, values = [] } = body || {};
+      store[table] = store[table].filter((item: any) => !values.includes(item[field]));
+      this.setLocalStore(store);
+      return { success: true };
+    }
+
+    throw new Error(`Unsupported local fallback method: ${method}`);
+  }
+
+  private getBaseUrlCandidates() {
     const configured = (import.meta as any).env.VITE_API_BASE_URL || '';
+    const candidates = new Set<string>();
+
     if (configured) {
-      return configured.replace(/\/$/, '');
+      candidates.add(configured.replace(/\/$/, ''));
     }
 
     if (typeof window !== 'undefined' && window.location?.origin) {
-      return window.location.origin;
+      candidates.add(window.location.origin);
     }
 
-    return '';
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const host = window.location.hostname;
+      candidates.add(`http://${host}:3000`);
+      candidates.add(`http://${host}:3102`);
+      candidates.add(`http://127.0.0.1:3000`);
+      candidates.add(`http://127.0.0.1:3102`);
+      candidates.add(`http://localhost:3000`);
+      candidates.add(`http://localhost:3102`);
+    }
+
+    return Array.from(candidates).filter(Boolean);
   }
 
   private async request(path: string, init: RequestInit = {}) {
-    const response = await fetch(`${this.getBaseUrl()}${path}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init.headers || {}),
-      },
-      ...init,
-    });
+    const candidateBases = this.getBaseUrlCandidates();
+    const errors: string[] = [];
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || 'Request failed');
+    for (const baseUrl of candidateBases) {
+      try {
+        const response = await fetch(`${baseUrl}${path}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(init.headers || {}),
+          },
+          ...init,
+        });
+
+        if (response.ok) {
+          if (response.status === 204) {
+            return null;
+          }
+          return response.json();
+        }
+
+        const text = await response.text();
+        errors.push(`${baseUrl}${path}: ${text || response.statusText}`);
+      } catch (error) {
+        errors.push(`${baseUrl}${path}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
 
-    if (response.status === 204) {
-      return null;
+    try {
+      return this.handleLocalRequest(path, init);
+    } catch (fallbackError) {
+      errors.push(fallbackError instanceof Error ? fallbackError.message : String(fallbackError));
+      throw new Error(errors.join(' | '));
     }
-
-    return response.json();
   }
 
   from(table: string) {
@@ -109,6 +234,7 @@ class RemoteSupabaseClient {
     const listeners: Array<{ callback: (payload: RealtimePayload) => void; table: string; eventType: string }> = [];
     let eventSource: EventSource | null = null;
     let isClosed = false;
+    let retryTimer: number | undefined;
 
     const notifyListeners = (payload: RealtimePayload) => {
       listeners.forEach((listener) => {
@@ -139,7 +265,9 @@ class RemoteSupabaseClient {
           return { unsubscribe: () => {} };
         }
 
-        eventSource = new EventSource(`${this.getBaseUrl()}/api/stream?channel=${encodeURIComponent(name)}`);
+        const baseUrls = this.getBaseUrlCandidates();
+        let baseIndex = 0;
+
         const handleIncomingEvent = (event: MessageEvent | Event) => {
           try {
             const payload = JSON.parse((event as MessageEvent).data);
@@ -149,18 +277,33 @@ class RemoteSupabaseClient {
           }
         };
 
-        eventSource.addEventListener('update', handleIncomingEvent as EventListener);
-        eventSource.addEventListener('message', handleIncomingEvent as EventListener);
-        eventSource.onerror = () => {
-          if (eventSource?.readyState === EventSource.CLOSED) {
+        const connect = () => {
+          if (isClosed || eventSource || baseIndex >= baseUrls.length) {
+            return;
+          }
+
+          eventSource = new EventSource(`${baseUrls[baseIndex]}/api/stream?channel=${encodeURIComponent(name)}`);
+          eventSource.addEventListener('update', handleIncomingEvent as EventListener);
+          eventSource.addEventListener('message', handleIncomingEvent as EventListener);
+          eventSource.onerror = () => {
             eventSource?.close();
             eventSource = null;
-          }
+            baseIndex += 1;
+
+            if (!isClosed && baseIndex < baseUrls.length) {
+              retryTimer = window.setTimeout(connect, 250);
+            }
+          };
         };
+
+        connect();
 
         return {
           unsubscribe: () => {
             isClosed = true;
+            if (retryTimer !== undefined) {
+              window.clearTimeout(retryTimer);
+            }
             eventSource?.close();
             eventSource = null;
           },

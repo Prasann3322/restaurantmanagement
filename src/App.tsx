@@ -9,7 +9,6 @@ import CustomerPortal from './components/CustomerPortal';
 import { ChefLogo } from './components/ChefLogo';
 import { 
   supabase, 
-  isSupabaseConfigured,
   mapDbMenuItemToClient, 
   mapClientMenuItemToDb, 
   mapDbOrderToClient, 
@@ -17,6 +16,8 @@ import {
   mapDbTableToClient, 
   mapClientTableToDb 
 } from './supabase';
+
+const DB_INITIALIZED_KEY = 'gd_database_initialized_v1';
 
 // Double beep/chime chord using HTML5 Web Audio API (highly responsive, no external assets needed)
 const playIncomingOrderSound = () => {
@@ -117,27 +118,36 @@ export default function App() {
     setCustomAlert({ isOpen: true, title, message });
   };
 
-  // Seeding function if database is empty
-  const seedDatabaseIfNeeded = async (menuItemsEmpty: boolean, tablesEmpty: boolean, ordersEmpty: boolean) => {
+  const hasDatabaseBeenInitialized = () => {
     try {
-      if (menuItemsEmpty) {
-        console.log("Seeding menu_items...");
-        const dbItems = INITIAL_MENU_ITEMS.map(mapClientMenuItemToDb);
-        const { error } = await supabase.from('menu_items').insert(dbItems);
-        if (error) console.error("Error seeding menu_items:", error);
-      }
-      if (tablesEmpty) {
-        console.log("Seeding tables...");
-        const dbTables = INITIAL_TABLES.map(t => mapClientTableToDb(t));
-        const { error } = await supabase.from('tables').insert(dbTables);
-        if (error) console.error("Error seeding tables:", error);
-      }
-      if (ordersEmpty) {
-        console.log("Seeding orders...");
-        const dbOrders = INITIAL_ORDERS.map(mapClientOrderToDb);
-        const { error } = await supabase.from('orders').insert(dbOrders);
-        if (error) console.error("Error seeding orders:", error);
-      }
+      return localStorage.getItem(DB_INITIALIZED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  };
+
+  const markDatabaseInitialized = () => {
+    try {
+      localStorage.setItem(DB_INITIALIZED_KEY, 'true');
+    } catch {
+      // Ignore storage failures; remote persistence can still be available.
+    }
+  };
+
+  // Seeding function if database is empty
+  const seedDatabaseIfNeeded = async () => {
+    try {
+      console.log("Seeding initial restaurant database...");
+      const { error: menuError } = await supabase.from('menu_items').insert(INITIAL_MENU_ITEMS.map(mapClientMenuItemToDb));
+      if (menuError) console.error("Error seeding menu_items:", menuError);
+
+      const { error: tablesError } = await supabase.from('tables').insert(INITIAL_TABLES.map(t => mapClientTableToDb(t)));
+      if (tablesError) console.error("Error seeding tables:", tablesError);
+
+      const { error: ordersError } = await supabase.from('orders').insert(INITIAL_ORDERS.map(mapClientOrderToDb));
+      if (ordersError) console.error("Error seeding orders:", ordersError);
+
+      markDatabaseInitialized();
     } catch (err) {
       console.error("Error seeding Supabase database:", err);
     }
@@ -165,8 +175,13 @@ export default function App() {
       const tablesEmpty = !errTables && (!dbTables || dbTables.length === 0);
       const ordersEmpty = !errOrders && (!dbOrders || dbOrders.length === 0);
 
-      if (menuEmpty || tablesEmpty || ordersEmpty) {
-        await seedDatabaseIfNeeded(menuEmpty, tablesEmpty, ordersEmpty);
+      const databaseHasData = !menuEmpty || !tablesEmpty || !ordersEmpty;
+      if (databaseHasData) {
+        markDatabaseInitialized();
+      }
+
+      if (!hasDatabaseBeenInitialized() && menuEmpty && tablesEmpty && ordersEmpty) {
+        await seedDatabaseIfNeeded();
         // Refetch after seeding
         const { data: m } = await supabase.from('menu_items').select('*');
         if (m) setMenuItems(m.map(mapDbMenuItemToClient));
@@ -252,6 +267,7 @@ export default function App() {
       } else {
         await supabase.from('menu_items').delete().in('id', previousMenuItems.map((m: MenuItem) => m.id));
       }
+      markDatabaseInitialized();
 
       const { data, error } = await supabase.from('menu_items').select('*');
       if (!error && data) {
@@ -284,6 +300,7 @@ export default function App() {
       : value;
 
     setTables(nextTables);
+    tablesRef.current = nextTables;
 
     try {
       const nextNumbers = nextTables.map(t => t.number);
@@ -296,6 +313,7 @@ export default function App() {
       } else {
         await supabase.from('tables').delete().in('table_number', previousTables.map(t => t.number));
       }
+      markDatabaseInitialized();
     } catch (err) {
       console.error("Error writing tables to Supabase:", err);
     }
@@ -310,6 +328,7 @@ export default function App() {
       : value;
 
     setOrders(nextOrders);
+    ordersRef.current = nextOrders;
 
     try {
       const nextIds = nextOrders.map(o => o.id);
@@ -322,6 +341,7 @@ export default function App() {
       } else {
         await supabase.from('orders').delete().in('id', previousOrders.map(o => o.id));
       }
+      markDatabaseInitialized();
     } catch (err) {
       console.error("Error writing orders to Supabase:", err);
     }

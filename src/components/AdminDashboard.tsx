@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { MenuItem, Table, Order, OrderStatus, encodeTableNumber } from '../types';
 import { ChefLogo } from './ChefLogo';
-import { supabase } from '../supabase';
 
 interface AdminDashboardProps {
   menuItems: MenuItem[];
@@ -601,7 +600,6 @@ export default function AdminDashboard({
     };
 
     setOrders(prev => [newOrder, ...prev]);
-    void supabase.from('orders').upsert(newOrder as any);
     setCreateOrderModalOpen(false);
     triggerToast(`Created new direct bill for ${createOrderTableNumber === 0 ? "Counter" : `Table ${createOrderTableNumber}`}!`);
   };
@@ -755,10 +753,6 @@ export default function AdminDashboard({
   const updateOrderStatus = async (orderId: string, nextStatus: OrderStatus) => {
     const updated = orders.map(ord => ord.id === orderId ? { ...ord, status: nextStatus } : ord);
     setOrders(updated);
-    const target = updated.find(ord => ord.id === orderId);
-    if (target) {
-      await supabase.from('orders').upsert(target as any);
-    }
     triggerToast(`Order status updated to ${nextStatus.toUpperCase()}`);
   };
 
@@ -769,7 +763,6 @@ export default function AdminDashboard({
       async () => {
         const remaining = orders.filter(o => o.id !== orderId);
         setOrders(remaining);
-        await supabase.from('orders').delete().in('id', [orderId]);
         triggerToast("Order has been deleted.");
       },
       "Yes, Delete Ticket",
@@ -865,7 +858,7 @@ export default function AdminDashboard({
         imageUrl: finalImageUrl
       };
 
-      await setMenuItems([...menuItems, newItem]);
+      await setMenuItems((prev: MenuItem[]) => [...prev, newItem]);
       resetFormState();
       setIsMenuFormOpen(false);
       triggerToast(`"${newItem.name}" registration complete!`);
@@ -882,7 +875,7 @@ export default function AdminDashboard({
       "Delete Menu Item",
       `Are you sure you want to permanently delete "${name}" from the menu?`,
       () => {
-        void setMenuItems(menuItems.filter((item: MenuItem) => item.id !== id));
+        void setMenuItems((prev: MenuItem[]) => prev.filter((item: MenuItem) => item.id !== id));
         triggerToast(`"${name}" deleted.`);
       },
       "Yes, Delete Item",
