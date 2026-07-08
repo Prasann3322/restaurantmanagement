@@ -21,7 +21,15 @@ interface RealtimePayload {
 class RemoteSupabaseClient {
   private getBaseUrl() {
     const configured = (import.meta as any).env.VITE_API_BASE_URL || '';
-    return configured.replace(/\/$/, '');
+    if (configured) {
+      return configured.replace(/\/$/, '');
+    }
+
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin;
+    }
+
+    return '';
   }
 
   private async request(path: string, init: RequestInit = {}) {
